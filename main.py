@@ -1,19 +1,11 @@
-"""
-Script principal de ejecución para AeroCargo-Matrix.
-Demuestra la validación de matrices de carga, extracción de submatrices,
-cálculo de tasa de ocupación y análisis de balance lateral.
-"""
+from aerocargo import validar_matriz, obtener_submatriz, calcular_ocupacion, evaluar_balance_lateral
 
-from aerocargo import validar_matriz, obtener_submatriz, calcular_ocupacion, balance_lateral
-
-
-def ejecutar_demostracion():
-    # Matriz de carga de prueba (4 filas x 4 columnas)
+def main():
+    # Matriz de carga de prueba
     matriz_carga = [
-        [150.0, 200.0, 200.0, 150.0],
-        [100.0,   0.0,   0.0, 100.0],
-        [300.0, 250.0, 250.0, 300.0],
-        [  0.0, 180.0, 180.0,   0.0]
+        [100, 200, 150],
+        [300, 400, 350],
+        [250, 150, 100]
     ]
 
     print("=== MATRIZ DE CARGA AEROCARGO ===")
@@ -34,10 +26,8 @@ def ejecutar_demostracion():
     print(f"3. Tasa de ocupación: {porcentaje_ocupado}%")
 
     # 4. Análisis de Balance Lateral
-    peso_izq, peso_der, balanceado = balance_lateral(matriz_carga)
-    print(f"4. Peso Izquierda: {peso_izq} kg | Peso Derecha: {peso_der} kg")
-    print(f"   ¿Balance lateral correcto?: {balanceado}")
+    balance = evaluar_balance_lateral(matriz_carga)
+    print(f"4. Análisis de balance lateral: {balance}")
 
-
-if _name_ == "_main_":
-    ejecutar_demostracion()
+if __name__ == "__main__":
+    main()

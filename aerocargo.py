@@ -1,90 +1,81 @@
-"""
-Módulo AeroCargo: Funciones para validación, extracción de submatrices,
-cálculo de ocupación y balance lateral de carga en aeronaves.
-"""
-
 def validar_matriz(matriz):
     """
-    Verifica que la matriz sea rectangular (todas las filas del mismo tamaño)
-    y que todos sus elementos sean números no negativos (>= 0).
+    >>> validar_matriz([[10, 20], [30, 40]])
+    True
+    >>> validar_matriz([])
+    False
     """
     if not matriz or not isinstance(matriz, list):
         return False
     
-    if not isinstance(matriz[0], list) or len(matriz[0]) == 0:
+    num_columnas = len(matriz[0])
+    if num_columnas == 0:
         return False
-        
-    columnas = len(matriz[0])
-    
-    for fila in matriz:
-        if not isinstance(fila, list) or len(fila) != columnas:
-            return False
-        for elemento in fila:
-            if not isinstance(elemento, (int, float)) or elemento < 0:
-                return False
-                
-    return True
 
+    for fila in matriz:
+        if not isinstance(fila, list) or len(fila) != num_columnas:
+            return False
+            
+    return True
 
 def obtener_submatriz(matriz, fila_inicio, fila_fin, col_inicio, col_fin):
     """
-    Extrae y devuelve una submatriz delimitada por las filas y columnas indicadas.
+    >>> obtener_submatriz([[1, 2], [3, 4]], 0, 0, 0, 1)
+    [[1, 2]]
     """
-    if not validar_matriz(matriz):
-        return []
-        
-    num_filas = len(matriz)
-    num_cols = len(matriz[0])
-    
-    if (fila_inicio < 0 or fila_fin >= num_filas or fila_inicio > fila_fin or
-        col_inicio < 0 or col_fin >= num_cols or col_inicio > col_fin):
-        return []
-        
     submatriz = []
-    for f in range(fila_inicio, fila_fin + 1):
-        submatriz.append(matriz[f][col_inicio:col_fin + 1])
-        
+    for r in range(fila_inicio, fila_fin + 1):
+        fila_sub = []
+        for c in range(col_inicio, col_fin + 1):
+            fila_sub.append(matriz[r][c])
+        submatriz.append(fila_sub)
     return submatriz
-
 
 def calcular_ocupacion(matriz):
     """
-    Calcula el porcentaje de celdas ocupadas (peso > 0) respecto al total de celdas.
+    >>> calcular_ocupacion([[10, 0], [20, 0]])
+    50.0
     """
     if not validar_matriz(matriz):
         return 0.0
-        
+
     total_celdas = len(matriz) * len(matriz[0])
-    if total_celdas == 0:
-        return 0.0
-        
-    celdas_ocupadas = sum(1 for fila in matriz for elemento in fila if elemento > 0)
-    
-    return round((celdas_ocupadas / total_celdas) * 100, 2)
+    celdas_ocupadas = 0
 
+    for fila in matriz:
+        for peso in fila:
+            if peso > 0:
+                celdas_ocupadas += 1
 
-def balance_lateral(matriz):
-    """
-    Calcula el peso total de la mitad izquierda vs mitad derecha.
-    Devuelve una tupla (peso_izq, peso_der, esta_balanceado).
-    """
+    porcentaje = (celdas_ocupadas / total_celdas) * 100
+    return round(porcentaje, 2)
+
+def evaluar_balance_lateral(matriz):
     if not validar_matriz(matriz):
-        return (0.0, 0.0, False)
-        
+        return "Matriz inválida"
+
+    peso_izquierdo = 0
+    peso_derecho = 0
     num_cols = len(matriz[0])
     mitad = num_cols // 2
-    
-    peso_izq = 0.0
-    peso_der = 0.0
-    
+
     for fila in matriz:
-        peso_izq += sum(fila[:mitad])
-        # Si el número de columnas es impar, la columna central se omite o se reparte equitativamente
-        if num_cols % 2 == 0:
-            peso_der += sum(fila[mitad:])
-        else:
-            peso_der += sum(fila[mitad + 1:])
-            
-    esta_balanceado = abs(peso_izq - peso_der) < 1e-5
+        for c in range(mitad):
+            peso_izquierdo += fila[c]
+        
+        inicio_derecha = mitad if num_cols % 2 == 0 else mitad + 1
+        for c in range(inicio_derecha, num_cols):
+            peso_derecho += fila[c]
+
+    diferencia = abs(peso_izquierdo - peso_derecho)
     
-    return (round(peso_izq, 2), round(peso_der, 2), esta_balanceado)
+    if diferencia == 0:
+        return f"Perfectamente balanceado (Izq: {peso_izquierdo}kg, Der: {peso_derecho}kg)"
+    elif peso_izquierdo > peso_derecho:
+        return f"Inclinado a la izquierda por {diferencia}kg (Izq: {peso_izquierdo}kg, Der: {peso_derecho}kg)"
+    else:
+        return f"Inclinado a la derecha por {diferencia}kg (Izq: {peso_izquierdo}kg, Der: {peso_derecho}kg)"
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)

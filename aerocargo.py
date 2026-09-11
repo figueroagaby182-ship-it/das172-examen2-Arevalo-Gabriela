@@ -1,112 +1,114 @@
 """
-test_aerocargo.py
-Suite de pruebas unitarias para validar las funciones del proyecto AeroCargo-Matrix.
+aerocargo.py
+Módulo de lógica matemática y procesamiento matricial pura para AeroCargo-Matrix.
 """
 
-import unittest
-from aerocargo import (
-    validar_matrices,
-    calcular_ocupacion_y_sobrecarga,
-    evaluar_balance_y_simetria,
-    extraer_submatriz_critica,
-)
+
+def validar_matrices(cargas, capacidades):
+    if not isinstance(cargas, list) or not isinstance(capacidades, list):
+        return False
+
+    n_cargas = len(cargas)
+    n_caps = len(capacidades)
+
+    if n_cargas < 2 or n_cargas != n_caps:
+        return False
+
+    m_cargas = len(cargas[0]) if n_cargas > 0 and isinstance(cargas[0], list) else 0
+    m_caps = len(capacidades[0]) if n_caps > 0 and isinstance(capacidades[0], list) else 0
+
+    if m_cargas < 2 or m_cargas != m_caps:
+        return False
+
+    for f in range(n_cargas):
+        if not isinstance(cargas[f], list) or not isinstance(capacidades[f], list):
+            return False
+        if len(cargas[f]) != m_cargas or len(capacidades[f]) != m_caps:
+            return False
+
+        for c in range(m_cargas):
+            val_carga = cargas[f][c]
+            val_cap = capacidades[f][c]
+
+            if not isinstance(val_carga, (int, float)) or val_carga < 0:
+                return False
+            if not isinstance(val_cap, (int, float)) or val_cap <= 0:
+                return False
+
+    return True
 
 
-class TestAeroCargoMatrix(unittest.TestCase):
+def calcular_ocupacion_y_sobrecarga(cargas, capacidades):
+    if not validar_matrices(cargas, capacidades):
+        return {"matriz_porcentajes": [], "sobrecargas": []}
 
-    def setUp(self):
-        """Configuración de matrices base para los casos de prueba."""
-        # Matriz válida 3x4
-        self.cargas_validas = [
-            [500, 650, 700, 400],
-            [400, 300, 550, 200],
-            [100, 0, 300, 450],
-        ]
-        self.caps_validas = [
-            [500, 600, 700, 500],
-            [500, 500, 500, 500],
-            [500, 500, 500, 500],
-        ]
+    matriz_pct = []
+    sobrecargas = []
 
-    # -------------------------------------------------------------------------
-    # PRUEBAS MÓDULO 1: Validación y Coherencia Dimensional
-    # -------------------------------------------------------------------------
-    def test_validar_matrices_correcto(self):
-        """Verifica que matrices válidas retorno True."""
-        self.assertTrue(validar_matrices(self.cargas_validas, self.caps_validas))
+    for f in range(len(cargas)):
+        fila_pct = []
+        for c in range(len(cargas[0])):
+            pct = round((cargas[f][c] / capacidades[f][c]) * 100.0, 2)
+            fila_pct.append(pct)
+            if pct > 100.0:
+                sobrecargas.append((f, c))
+        matriz_pct.append(fila_pct)
 
-    def test_validar_matrices_dimensiones_incompatibles(self):
-        """Verifica falla cuando las dimensiones N x M no coinciden."""
-        caps_incorrectas = [[500, 500], [500, 500]]
-        self.assertFalse(validar_matrices(self.cargas_validas, caps_incorrectas))
+    return {
+        "matriz_porcentajes": matriz_pct,
+        "sobrecargas": sobrecargas
+    }
 
-    def test_validar_matrices_valores_invalidos(self):
-        """Verifica rechazo de cargas negativas o capacidades <= 0."""
-        cargas_negativas = [[-100, 200], [200, 200]]
-        caps_ceros = [[0, 500], [500, 500]]
-        self.assertFalse(validar_matrices(cargas_negativas, self.caps_validas))
-        self.assertFalse(validar_matrices(self.cargas_validas, caps_ceros))
 
-    # -------------------------------------------------------------------------
-    # PRUEBAS MÓDULO 2: Ocupación y Sobrecarga
-    # -------------------------------------------------------------------------
-    def test_calcular_ocupacion_y_sobrecarga(self):
-        """Verifica el cálculo de porcentajes y la identificación de celdas > 100%."""
-        resultado = calcular_ocupacion_y_sobrecarga(self.cargas_validas, self.caps_validas)
-        matriz_pct = resultado["matriz_porcentajes"]
-        sobrecargas = resultado["sobrecargas"]
+def evaluar_balance_y_simetria(cargas, tolerancia_desbalance_kg):
+    if not isinstance(cargas, list) or not cargas or not isinstance(cargas[0], list):
+        return {"pesos_longitudinales": [], "desbalance_kg": 0.0, "balanceado": False}
 
-        # 650/600 * 100 = 108.33% en (0, 1) y 550/500 * 100 = 110.0% en (1, 2)
-        self.assertEqual(matriz_pct[0][0], 100.0)
-        self.assertEqual(matriz_pct[0][1], 108.33)
-        self.assertIn((0, 1), sobrecargas)
-        self.assertIn((1, 2), sobrecargas)
+    pesos_longitudinales = [sum(fila) for fila in cargas]
 
-    # -------------------------------------------------------------------------
-    # PRUEBAS MÓDULO 3: Balance y Simetría
-    # -------------------------------------------------------------------------
-    def test_evaluar_balance_par(self):
-        """Verifica balance en matriz con número par de columnas (M=4)."""
-        resultado = evaluar_balance_y_simetria(self.cargas_validas, tolerancia_desbalance_kg=300.0)
-        
-        # Pesos longitudinales por fila: [2250, 1450, 850]
-        self.assertEqual(resultado["pesos_longitudinales"], [2250, 1450, 850])
-        # Babor (cols 0,1): 500+650 + 400+300 + 100+0 = 1950 kg
-        # Estribor (cols 2,3): 700+400 + 550+200 + 300+450 = 2600 kg
-        # Desbalance: |1950 - 2600| = 650 kg > 300.0 kg => RECHAZADO (False)
-        self.assertEqual(resultado["desbalance_kg"], 650.0)
-        self.assertFalse(resultado["balanceado"])
+    m = len(cargas[0])
+    mitad = m // 2
 
-    def test_evaluar_balance_impar(self):
-        """Verifica la omisión de la columna central si M es impar (M=3)."""
-        cargas_impar = [
-            [100, 999, 100],
-            [200, 888, 200]
-        ]
-        resultado = evaluar_balance_y_simetria(cargas_impar, tolerancia_desbalance_kg=50.0)
-        # Columna 1 (índice 1, valor 999 y 888) se omite.
-        # Babor: 100 + 200 = 300. Estribor: 100 + 200 = 300. Desbalance = 0.
-        self.assertEqual(resultado["desbalance_kg"], 0.0)
-        self.assertTrue(resultado["balanceado"])
+    peso_izquierda = sum(sum(fila[:mitad]) for fila in cargas)
 
-    # -------------------------------------------------------------------------
-    # PRUEBAS MÓDULO 4: Extracción de Submatriz Crítica
-    # -------------------------------------------------------------------------
-    def test_extraer_submatriz_critica(self):
-        """Verifica la extracción de la ventana k x p con mayor ocupación."""
-        matriz_pct = [
-            [100.0, 108.33, 100.0, 80.0],
-            [80.0, 60.0, 110.0, 40.0],
-            [20.0, 0.0, 60.0, 90.0]
-        ]
-        sub = extraer_submatriz_critica(matriz_pct, k=2, p=2)
-        # La ventana 2x2 en superior izquierda (filas 0-1, cols 0-1) promedia mayor carga
-        esperado = [
-            [100.0, 108.33],
-            [80.0, 60.0]
-        ]
-        self.assertEqual(sub, esperado)
+    if m % 2 == 0:
+        peso_derecha = sum(sum(fila[mitad:]) for fila in cargas)
+    else:
+        peso_derecha = sum(sum(fila[mitad + 1:]) for fila in cargas)
+
+    desbalance_kg = abs(peso_izquierda - peso_derecha)
+    es_balanceado = desbalance_kg <= tolerancia_desbalance_kg
+
+    return {
+        "pesos_longitudinales": pesos_longitudinales,
+        "desbalance_kg": desbalance_kg,
+        "balanceado": es_balanceado
+    }
+
+
+def extraer_submatriz_critica(matriz_pct, k, p):
+    n = len(matriz_pct)
+    m = len(matriz_pct[0]) if n > 0 and isinstance(matriz_pct[0], list) else 0
+
+    if k > n or p > m or k <= 0 or p <= 0:
+        return []
+
+    max_promedio = -1.0
+    mejor_submatriz = []
+
+    for f in range(n - k + 1):
+        for c in range(m - p + 1):
+            submatriz_actual = [fila[c:c + p] for fila in matriz_pct[f:f + k]]
+            suma_total = sum(sum(fila) for fila in submatriz_actual)
+            promedio_actual = suma_total / (k * p)
+
+            if promedio_actual > max_promedio:
+                max_promedio = promedio_actual
+                mejor_submatriz = submatriz_actual
+
+    return mejor_submatriz
 
 
 if __name__ == "__main__":
-    unittest.main()
+    import doctest
+    doctest.testmod()

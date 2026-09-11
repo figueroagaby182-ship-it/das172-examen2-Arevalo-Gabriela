@@ -1,12 +1,19 @@
-# Cache de Python
+# Archivos de caché y compilados de Python
 __pycache__/
-*.pyc
-
-# Cache de pruebas
+*.py[cod]
+*$py.class
 .pytest_cache/
 
-# Configuración de entorno y editor
-.venv/
+# Entornos virtuales
+venv/
 env/
+ENV/
+.venv/
+
+# Archivos de configuración de VS Code y editores
 .vscode/
+.idea/
+
+# Archivos de sistema operativo
 .DS_Store
+Thumbs.db

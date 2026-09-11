@@ -1,41 +1,62 @@
- # AeroCargo-Matrix 
+# AeroCargo-Matrix 
 
-Sistema en Python para la validación de matrices de carga, cálculo de tasas de ocupación y análisis de balance lateral para aeronaves de carga.
-
----
-
-##  Explicación del Problema
-
-En la industria aeronáutica, el control de *balance de masa* y la *capacidad de piso* son fundamentales para la seguridad operacional y la eficiencia del vuelo:
-
-* *Balance de Masa y Centro de Gravedad (CG):* Una distribución asimétrica del peso altera el centro de gravedad de la aeronave. Un desequilibrio lateral obliga a aplicar correcciones continuas de compensación (trim) en vuelo, lo que incrementa el arrastre aerodinámico y el consumo de combustible. En casos extremos, superar los límites de balance lateral compromete la maniobrabilidad en despegue y aterrizaje.
-* *Capacidad de Piso (Floor Loading Limits):* Cada compartimento de carga posee límites estructurales de resistencia por unidad de superficie (kg/m² o lbs/ft²). La validación matricial garantiza que el peso distribuido no supere la resistencia máxima del piso del fuselaje, evitando daños en la estructura.
+**Reto Evaluativo:** Auditoría y Balance Matricial de Distribución de Carga en Bahía de Aeronave (*AeroCargo-Matrix*).
 
 ---
 
-##  Diagrama de Arquitectura Modular
+##  III. Contexto de Ingeniería Aeronáutica
 
-```text
-       +-------------------------------------------------------+
-       |                       main.py                         |
-       |  (Script principal: Datos de prueba y visualización)  |
-       +---------------------------+---------------------------+
-                                   |
-            1. Envía matriz        |        2. Devuelve booleano/
-               de carga            v           métricas calculadas
-       +-------------------------------------------------------+
-       |                     aerocargo.py                      |
-       |  (Módulo de validación, submatrices y cálculos)       |
-       |                                                       |
-       |  - validar_matriz()  -> Comprueba dimensiones/valores |
-       |  - obtener_submatriz() -> Extrae región de carga       |
-       |  - calcular_ocupacion() -> % de celdas utilizadas     |
-       |  - balance_lateral()   -> Compara peso Izq vs Der     |
-       +---------------------------+---------------------------+
-                                   ^
-            3. Importa y valida    |
-               funciones           |
-       +---------------------------+---------------------------+
-       |                  test_aerocargo.py                    |
-       |  (Suite Pytest: Casos típicos y casos de borde)       |
-       +-------------------------------------------------------+
+En el transporte aéreo de carga y la aviación comercial, la correcta distribución del peso en la bodega (*cargo hold*) de una aeronave es fundamental por dos razones operativas y de seguridad:
+
+1. **Capacidad y Resistencia del Piso:** Cada sección del piso de carga soporta un peso máximo permitido en kilogramos ($\text{kg}$). Si una zona se sobrecarga ($>100\%$), se compromete la integridad estructural del piso y las vigas del fuselaje.
+2. **Balance y Simetría:** Para garantizar un vuelo seguro y maniobrable, el peso debe estar equilibrado entre el lado izquierdo (**Babor**) y el lado derecho (**Estribor**), omitiendo la columna central si el número de columnas $M$ es impar por ubicarse sobre el eje de simetría longitudinal de la aeronave.
+
+El piso de carga se discretiza como una cuadrícula bidimensional de dimensiones $N \times M$ ($N$ filas a lo largo de proa a popa y $M$ columnas de izquierda a derecha).
+
+---
+
+##  IV. Estructura de Datos y Reglas de Cálculo
+
+El sistema procesa dos matrices de entrada $N \times M$ e implementa las siguientes reglas de operación:
+
+* **Porcentaje de Ocupación Celda a Celda:**
+  $$\text{PorcentajeOcupacion}(i, j) = \left( \frac{\text{PesoReal}(i, j)}{\text{CapacidadMaxima}(i, j)} \right) \times 100.0$$
+  *(Condición de sobrecarga: Celda activa si $\text{PorcentajeOcupacion} > 100.0\%$)*
+
+* **Peso Total Fila (Longitudinal):**
+  $$\text{PesoTotalFila}(i) = \sum_{j=0}^{M-1} \text{PesoReal}(i, j)$$
+
+* **Desbalance Lateral (Transversal):**
+  $$\text{DesbalanceLateral} = \vert{}\text{SumaPesosMitadIzquierda} - \text{SumaPesosMitadDerecha}\vert{}$$
+  *(Si $M$ es impar, la columna central $M // 2$ se omite por alineación sobre el eje de simetría).*
+
+---
+
+##  Análisis de Complejidad Computacional
+
+El comportamiento de los módulos ante matrices $N \times M$ cumple con los siguientes parámetros formales:
+
+* **Complejidad Temporal — $O(N \times M)$:**
+  Las funciones de validación, porcentaje celda a celda y sumatoria de pesos transversales/longitudinales requieren un recorrido lineal de las $N \times M$ celdas de la cuadrícula. La extracción de ventana crítica de tamaño $k \times p$ opera bajo $O((N-k+1) \times (M-p+1) \times k \times p)$.
+
+* **Complejidad Espacial — $O(N \times M)$:**
+  Se utilizan funciones puras sin variables globales ni mutación de datos de entrada. La matriz de porcentajes retenida en memoria utiliza espacio auxiliar proporcional al tamaño $N \times M$.
+
+---
+
+##  Arquitectura Modular del Sistema
+
+```mermaid
+flowchart TD
+    MAIN[main.py<br><i>Ejecución y Presentación</i>] -->|Cargas y Capacidades| AERO[aerocargo.py<br><i>Módulo Principal de Lógica</i>]
+    AERO -->|Resultados y Métricas| MAIN
+    TEST[test_aerocargo.py<br><i>Suite de Pruebas Unitarias</i>] -->|Validación de Módulos| AERO
+
+    subgraph MODULOS ["V. Módulos Requeridos (aerocargo.py)"]
+        M1[1. validar_matrices: Coherencia dimensional N x M]
+        M2[2. calcular_ocupacion_y_sobrecarga: Matriz % y lista >100%]
+        M3[3. evaluar_balance_y_simetria: Vectores longitudinales y desbalance kg]
+        M4[4. extraer_submatriz_critica: Ventana k x p de mayor ocupación]
+    end
+
+    AERO --- MODULOS
